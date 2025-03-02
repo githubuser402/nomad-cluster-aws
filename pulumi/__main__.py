@@ -326,7 +326,6 @@ for i in range(public_instances_count):
 
 # join lists of private and public instances 
 instances_data = private_instances_data + public_instances_data + [ { 
-                                                                     "private_ip": bastion_instance.private_ip, 
                                                                      "type": "bastion", 
                                                                      "name": bastion_name } ]
     
