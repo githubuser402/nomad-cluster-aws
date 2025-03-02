@@ -180,8 +180,8 @@ ssh_security_group = aws.ec2.SecurityGroup(
 )
 
 # consul servers security group
-consul_security_group = aws.ec2.SecurityGroup("consul-sg",
-    vpc_id=vpc_id,
+consul_security_group = aws.ec2.SecurityGroup("consul-security-group",
+    vpc_id=vpc.id,
     description="Security group for Consul cluster nodes",
     
     ingress=[
@@ -192,20 +192,20 @@ consul_security_group = aws.ec2.SecurityGroup("consul-sg",
         {"protocol": "tcp", "from_port": 8302, "to_port": 8302, "cidr_blocks": ["10.0.0.0/16"], "description": "WAN Gossip (TCP)"},
         {"protocol": "udp", "from_port": 8302, "to_port": 8302, "cidr_blocks": ["10.0.0.0/16"], "description": "WAN Gossip (UDP)"},
         # nomad-to-consul
-        {"protocol": "tcp", "from_port": 8500, "to_port": 8500, "cidr_blocks": ["0.0.0.0/0"],  "security_groups": [nomad_security_group.id], "description": "Consul HTTP API/UI"},
-        {"protocol": "tcp", "from_port": 8600, "to_port": 8600, "cidr_blocks": ["10.0.0.0/16"], "security_groups": [nomad_security_group.id], "description": "Consul DNS (TCP)"},
-        {"protocol": "udp", "from_port": 8600, "to_port": 8600, "cidr_blocks": ["10.0.0.0/16"], "security_groups": [nomad_security_group.id], "description": "Consul DNS (UDP)"},
+        {"protocol": "tcp", "from_port": 8500, "to_port": 8500, "cidr_blocks": ["0.0.0.0/0"],  "description": "Consul HTTP API/UI"},
+        {"protocol": "tcp", "from_port": 8600, "to_port": 8600, "cidr_blocks": ["10.0.0.0/16"], "description": "Consul DNS (TCP)"},
+        {"protocol": "udp", "from_port": 8600, "to_port": 8600, "cidr_blocks": ["10.0.0.0/16"], "description": "Consul DNS (UDP)"},
     ],
     
     egress=[
         {"protocol": "-1", "from_port": 0, "to_port": 0, "cidr_blocks": ["0.0.0.0/0"], "description": "Allow all outbound traffic"}
     ],
-    tags={"Name": "consul-sg"}
+    tags={"Name": "consul-security-group"}
 )
 
 # nomad nodes security group
-nomad_security_group = aws.ec2.SecurityGroup("nomad-sg",
-    vpc_id=vpc_id,
+nomad_security_group = aws.ec2.SecurityGroup("nomad-security-group",
+    vpc_id=vpc.id,
     description="Security group for Nomad servers and clients",
 
     ingress=[
@@ -224,7 +224,7 @@ nomad_security_group = aws.ec2.SecurityGroup("nomad-sg",
     egress=[
         {"protocol": "-1", "from_port": 0, "to_port": 0, "cidr_blocks": ["0.0.0.0/0"], "description": "Allow all outbound traffic"}
     ],
-    tags={"Name": "nomad-sg"}
+    tags={"Name": "nomad-security-group"}
 )
 
 
