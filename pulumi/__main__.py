@@ -15,8 +15,16 @@ if public_ssh_key_path is None:
     raise ValueError("PUBLIC_SSH_KEY_PATH must be defined in .env file")
 
 ec2_config = config.require_object("ec2")
+
+# instance type for the bastion host
+bastion_instance_type = ec2_config["bastion_instance_type"]
+
+# instance type for the cluster nodes
 instance_type = ec2_config["instance_type"]
+
+# user data for vpc instances
 machine_image = ec2_config["ami"]
+
 
 # return the list of availability zones
 zones = config.require_object("availability_zones")
@@ -35,6 +43,19 @@ ec2_key = aws.ec2.KeyPair(
     public_key=open(public_ssh_key_path).read(),
     tags={"Name": "nomad-cluster-key"},
 )
+
+# internet gateway
+internet_gateway = aws.ec2.InternetGateway(
+    "nomad-cluster-gateway",
+    vpc_id=vpc.id,
+    tags={"Name": "nomad-cluster-gateway"},
+)
+
+
+# subnet creation: 
+#   private subnet
+#   public subnet
+#   bastion subnet
 
 # private subnet for the cluster nodes
 private_subnet = aws.ec2.Subnet(
@@ -55,12 +76,16 @@ public_subnet = aws.ec2.Subnet(
     tags={"Name": "nomad-cluster-public"},
 )
 
-# internet gateway
-internet_gateway = aws.ec2.InternetGateway(
-    "nomad-cluster-gateway",
+# bastion subnet for the bastion host
+bastion_subnet = aws.ec2.Subnet(
+    "nomad-cluster-bastion",
     vpc_id=vpc.id,
-    tags={"Name": "nomad-cluster-gateway"},
+    cidr_block="10.0.10.0/29", # 4 valid addresses 
+    availability_zone=zones[2],
+    map_public_ip_on_launch=True,
+    tags={"Name": "nomad-cluster-bastion"},
 )
+
 
 # route table for the public subnet
 public_route_table = aws.ec2.RouteTable(
@@ -77,6 +102,22 @@ public_route_table_association = aws.ec2.RouteTableAssociation(
     route_table_id=public_route_table.id
 )
 
+# route table for the bastion subnet
+bastion_route_table = aws.ec2.RouteTable(
+    "nomad-cluster-bastion-route-table",
+    vpc_id=vpc.id,
+    routes=[{"cidr_block": "0.0.0.0/0", "gateway_id": internet_gateway.id}],
+    tags={"Name": "nomad-cluster-bastion-route-table"},
+)
+
+# associate the bastion route table with the bastion subnet
+bastion_route_table_association = aws.ec2.RouteTableAssociation(
+    "nomad-cluster-bastion-route-table-association",
+    subnet_id=bastion_subnet.id,
+    route_table_id=bastion_route_table.id
+)
+
+
 # elastic IP for the NAT gateway
 elastic_ip = aws.ec2.Eip("nomad-cluster-nat-eip")
 
@@ -87,6 +128,7 @@ nat_gateway = aws.ec2.NatGateway(
     allocation_id=elastic_ip.id,
     tags={"Name": "nomad-cluster-nat-gateway"},
 )
+
 
 # route table for the private subnet
 private_route_table = aws.ec2.RouteTable(
@@ -104,10 +146,10 @@ private_route_table_association = aws.ec2.RouteTableAssociation(
 )
 
 # security group for the cluster nodes
-cluster_security_group = aws.ec2.SecurityGroup(
-    "nomad-cluster-node-sg",
+ssh_security_group = aws.ec2.SecurityGroup(
+    "nomad-ssh-sg",
     vpc_id=vpc.id,
-    description="ec2 instance security group",
+    description="Group allows to communicate with the cluster nodes only through the bastion host",
     
     # incoming traffic rules
     ingress=[
@@ -115,8 +157,8 @@ cluster_security_group = aws.ec2.SecurityGroup(
             "protocol": "tcp",
             "from_port": 22,
             "to_port": 22,
-            "cidr_blocks": ["0.0.0.0/0"], # must be replaced with the ip of the bridge machine subnet 
-            "description": "SSH access from anywhere"
+            "cidr_blocks": ["10.0.10.0/29"], 
+            "description": "allow ssh from bastion host"
         },
     ],
 
@@ -129,9 +171,58 @@ cluster_security_group = aws.ec2.SecurityGroup(
             "cidr_blocks": ["0.0.0.0/0"]
         }
     ],
-    tags={"Name": "nomad-cluster-node-sg"},
+    tags={"Name": "nomad-ssh-sg"},
 )
 
+
+# security group for the bastion host
+bastion_security_group = aws.ec2.SecurityGroup(
+    "nomad-bastion-sg",
+    vpc_id=vpc.id,
+    description="Group allows to communicate with the bastion host from anywhere",
+    
+    # incoming traffic rules
+    ingress=[
+        {
+            "protocol": "tcp",
+            "from_port": 22,
+            "to_port": 22,
+            "cidr_blocks": ["0.0.0.0/0"],
+            "description": "allow ssh from anywhere"
+        },
+    ],
+    
+    # outgoing traffic rules
+    egress=[
+        {
+            "protocol": "tcp",
+            "from_port": 22,
+            "to_port": 22,
+            "cidr_blocks": ["10.0.0.0/24", "10.0.1.0/24"],
+            "description": "allow ssh to the cluster nodes"
+        }
+    ],
+    tags={"Name": "nomad-bastion-sg"}
+)
+
+# create the bastion host
+bastion_instance = aws.ec2.Instance(
+    "nomad-bastion",
+    ami=machine_image,
+    instance_type=instance_type,
+    vpc_security_group_ids=[bastion_security_group.id],
+    subnet_id=bastion_subnet.id,
+    key_name=ec2_key.key_name,
+    tags={"Name": "nomad-bastion"},
+    user_data=f"""#!/bin/bash
+                    yum update -y
+                    yum install -y jq
+                    yum install -y ansible
+                    yum install -y python3
+                    yum install -y python3-pip""",
+)
+
+pulumi.export("bastion_instance_private_ip", bastion_instance.public_ip)
 
 # create the public instances
 # the subnet is 10.0.0.4/24
@@ -157,7 +248,6 @@ private_instances_data = [
 # count of public instances
 private_instances_count = len(private_instances_data)
 
-pulumi.export("vpc_id", vpc.id)
 pulumi.export("vpc_cidr", vpc.cidr_block)
 
 
@@ -169,7 +259,7 @@ for i in range(private_instances_count):
         resource_name=server_name,
         ami=machine_image,
         instance_type=instance_type,
-        vpc_security_group_ids=[cluster_security_group.id],
+        vpc_security_group_ids=[ssh_security_group.id],
         subnet_id=private_subnet.id,
         private_ip=private_instances_data[i]["private_ip"],
         key_name=ec2_key.key_name,
@@ -182,11 +272,6 @@ for i in range(private_instances_count):
     # private_instances_data[i]["id"] = private_instance.id
     private_instances_data[i]["name"] = server_name
     
-    try: 
-        private_instance.public_ip.apply(lambda public_ip: private_instances_data[i].update({"public_ip": str(public_ip)})) 
-    except pulumi.Output:
-        private_instances_data[i]["public_ip"] = None
-
     pulumi.export(f"private_instance_{i + 1}_private_ip", private_instance.private_ip)
     pulumi.export(f"private_instance_{i + 1}_public_ip", private_instance.public_ip)
     
@@ -210,7 +295,7 @@ for i in range(public_instances_count):
         resource_name=server_name,
         ami=machine_image,
         instance_type=instance_type,
-        vpc_security_group_ids=[cluster_security_group.id],
+        vpc_security_group_ids=[ssh_security_group.id],
         subnet_id=public_subnet.id,
         private_ip=public_instances_data[i]["private_ip"],
         key_name=ec2_key.key_name,
