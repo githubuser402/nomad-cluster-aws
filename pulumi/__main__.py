@@ -179,6 +179,54 @@ ssh_security_group = aws.ec2.SecurityGroup(
     tags={"Name": "nomad-ssh-sg"},
 )
 
+# consul servers security group
+consul_security_group = aws.ec2.SecurityGroup("consul-sg",
+    vpc_id=vpc_id,
+    description="Security group for Consul cluster nodes",
+    
+    ingress=[
+        # consul-to-consul
+        {"protocol": "tcp", "from_port": 8300, "to_port": 8300, "cidr_blocks": ["10.0.0.0/16"], "description": "Raft protocol (leader election)"},
+        {"protocol": "tcp", "from_port": 8301, "to_port": 8301, "cidr_blocks": ["10.0.0.0/16"], "description": "LAN Gossip (TCP)"},
+        {"protocol": "udp", "from_port": 8301, "to_port": 8301, "cidr_blocks": ["10.0.0.0/16"], "description": "LAN Gossip (UDP)"},
+        {"protocol": "tcp", "from_port": 8302, "to_port": 8302, "cidr_blocks": ["10.0.0.0/16"], "description": "WAN Gossip (TCP)"},
+        {"protocol": "udp", "from_port": 8302, "to_port": 8302, "cidr_blocks": ["10.0.0.0/16"], "description": "WAN Gossip (UDP)"},
+        # nomad-to-consul
+        {"protocol": "tcp", "from_port": 8500, "to_port": 8500, "cidr_blocks": ["0.0.0.0/0"],  "security_groups": [nomad_security_group.id], "description": "Consul HTTP API/UI"},
+        {"protocol": "tcp", "from_port": 8600, "to_port": 8600, "cidr_blocks": ["10.0.0.0/16"], "security_groups": [nomad_security_group.id], "description": "Consul DNS (TCP)"},
+        {"protocol": "udp", "from_port": 8600, "to_port": 8600, "cidr_blocks": ["10.0.0.0/16"], "security_groups": [nomad_security_group.id], "description": "Consul DNS (UDP)"},
+    ],
+    
+    egress=[
+        {"protocol": "-1", "from_port": 0, "to_port": 0, "cidr_blocks": ["0.0.0.0/0"], "description": "Allow all outbound traffic"}
+    ],
+    tags={"Name": "consul-sg"}
+)
+
+# nomad nodes security group
+nomad_security_group = aws.ec2.SecurityGroup("nomad-sg",
+    vpc_id=vpc_id,
+    description="Security group for Nomad servers and clients",
+
+    ingress=[
+        {"protocol": "tcp", "from_port": 4646, "to_port": 4646, "cidr_blocks": ["0.0.0.0/0"], "description": "Nomad HTTP API"},
+        {"protocol": "tcp", "from_port": 4647, "to_port": 4647, "cidr_blocks": ["10.0.0.0/16"], "description": "Nomad RPC"},
+        {"protocol": "tcp", "from_port": 4648, "to_port": 4648, "cidr_blocks": ["10.0.0.0/16"], "description": "Nomad Gossip (TCP)"},
+        {"protocol": "udp", "from_port": 4648, "to_port": 4648, "cidr_blocks": ["10.0.0.0/16"], "description": "Nomad Gossip (UDP)"},
+
+        # nomad to consul
+        {"protocol": "tcp", "from_port": 8500, "to_port": 8500, "security_groups": [consul_security_group.id], "description": "Nomad to Consul HTTP API"},
+        {"protocol": "tcp", "from_port": 8600, "to_port": 8600, "security_groups": [consul_security_group.id], "description": "Nomad to Consul DNS (TCP)"},
+        {"protocol": "udp", "from_port": 8600, "to_port": 8600, "security_groups": [consul_security_group.id], "description": "Nomad to Consul DNS (UDP)"},
+
+    ],
+
+    egress=[
+        {"protocol": "-1", "from_port": 0, "to_port": 0, "cidr_blocks": ["0.0.0.0/0"], "description": "Allow all outbound traffic"}
+    ],
+    tags={"Name": "nomad-sg"}
+)
+
 
 # security group for the bastion host
 bastion_security_group = aws.ec2.SecurityGroup(
@@ -268,11 +316,19 @@ pulumi.export("vpc_cidr", vpc.cidr_block)
 for i in range(private_instances_count):
     server_name = f"nomad-{private_instances_data[i]["type"][0] if type(private_instances_data[i]["type"]) == type(list()) else private_instances_data[i]["type"]}-{i + 1}"
 
+    security_groups = [ssh_security_group.id]
+    
+    if "consul" in private_instances_data[i]["type"]:
+        security_groups.append(consul_security_group.id)
+
+    if "nomad" in private_instances_data[i]["type"]:
+        security_groups.append(nomad_security_group.id)
+
     private_instance = aws.ec2.Instance(
         resource_name=server_name,
         ami=machine_image,
         instance_type=instance_type,
-        vpc_security_group_ids=[ssh_security_group.id],
+        vpc_security_group_ids=security_groups,
         subnet_id=private_subnet.id,
         private_ip=private_instances_data[i]["private_ip"],
         key_name=ec2_key.key_name,
