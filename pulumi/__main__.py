@@ -205,6 +205,12 @@ bastion_security_group = aws.ec2.SecurityGroup(
             "to_port": 22,
             "cidr_blocks": ["10.0.0.0/24", "10.0.1.0/24"],
             "description": "allow ssh to the cluster nodes"
+        },
+        {
+            "protocol": "-1",
+            "from_port": 0,
+            "to_port": 0,
+            "cidr_blocks": ["0.0.0.0/0"]
         }
     ],
     tags={"Name": "nomad-bastion-sg"}
