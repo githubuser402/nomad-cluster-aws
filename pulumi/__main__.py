@@ -155,7 +155,6 @@ ssh_security_group = aws.ec2.SecurityGroup(
     "nomad-ssh-sg",
     vpc_id=vpc.id,
     description="Group allows to communicate with the cluster nodes only through the bastion host",
-    description="Group allows to communicate with the cluster nodes only through the bastion host",
     
     # incoming traffic rules
     ingress=[
