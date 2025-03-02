@@ -1,0 +1,20 @@
+data_dir = "/opt/nomad"
+bind_addr = "0.0.0.0"
+
+server {
+  enabled = true
+  bootstrap_expect = {{ groups["nomad_server"] | length }}
+  retry_join = {{ groups["nomad_server"] | map('extract', hostvars, ['ansible_host']) | reject("equalto", ansible_host) |  list | to_json }}
+}
+
+consul {
+  {% if ansible_host in groups["consul"] %}
+  address = "127.0.0.1:8500"  # If local agent exists, use localhost
+  {% else %}
+  address = "{{ groups['consul'] | map('extract', hostvars, ['ansible_host']) | list | first }}:8500"  # Use first available Consul server
+  {% endif %}
+  
+  client_auto_join = true
+  server_service_name = "nomad"
+  client_service_name = "nomad-client"
+}

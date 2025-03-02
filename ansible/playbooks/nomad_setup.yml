@@ -1,0 +1,7 @@
+---
+
+- name: Install and Configure Nomad
+  hosts: nomad_server
+  become: yes
+  roles: 
+    - nomad

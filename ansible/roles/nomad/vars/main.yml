@@ -1,3 +1,4 @@
 #SPDX-License-Identifier: MIT-0
 ---
-# vars file for roles/nomad
+nomad_repo_url: "https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo"
+nomad_package: "nomad"

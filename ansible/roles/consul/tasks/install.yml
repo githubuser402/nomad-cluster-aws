@@ -9,7 +9,7 @@
       - shadow-utils
     state: present
 
-- name: Add HashiCorp YUM repository
+- name: Add HashiCorp Consul YUM repository
   command: "yum-config-manager --add-repo {{consul_repo_url}}" 
   args:
     creates: "/etc/yum.repos.d/hashicorp.repo"
