@@ -1,0 +1,9 @@
+data_dir = "/opt/consul"
+server = true
+bind_addr = "{{ ansible_host }}"
+
+bootstrap_expect = {{ groups["consul"] | length }} # Set the size of the consul cluster dynamically
+
+retry_join = {{ groups["consul"] | map('extract', hostvars, ['ansible_host']) | reject("equalto", ansible_host) | list | to_json }}
+
+

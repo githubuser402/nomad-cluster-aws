@@ -1,3 +1,6 @@
 #SPDX-License-Identifier: MIT-0
 ---
 # vars file for roles/consul
+consul_repo_url: "https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo"
+consul_package: "consul"
+

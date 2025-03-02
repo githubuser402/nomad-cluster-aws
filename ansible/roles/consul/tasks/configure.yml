@@ -1,0 +1,19 @@
+---
+
+- name: Create Consul configuration directory
+  file: 
+    path: "/etc/consul.d"
+    state: directory
+    mode: "0755"
+
+- name:  Copy Consul configuration
+  template: 
+    src: "consul.hcl.j2"
+    dest: "/etc/consul.d/consul.hcl"
+    mode: "0644"
+
+- name: Enable and Start consul service
+  systemd:
+    name: consul
+    state: started
+    enabled: true
