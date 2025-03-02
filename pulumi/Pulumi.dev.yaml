@@ -2,6 +2,7 @@ config:
   aws:region: eu-north-1
   ec2:
     instance_type: t3.micro
+    bastion_instance_type: t3.nano
     ami: ami-016038ae9cc8d9f51
   availability_zones:
     - eu-north-1a
