@@ -298,7 +298,7 @@ private_instances_data = [
                             },
                             {
                                 "private_ip": "10.0.0.6",
-                                "type":"client",
+                                "type":["client", "server"],
                             },
                             {
                                 "private_ip": "10.0.0.7",
@@ -321,7 +321,7 @@ for i in range(private_instances_count):
     if "consul" in private_instances_data[i]["type"]:
         security_groups.append(consul_security_group.id)
 
-    if "nomad" in private_instances_data[i]["type"]:
+    if "server" in private_instances_data[i]["type"]:
         security_groups.append(nomad_security_group.id)
 
     private_instance = aws.ec2.Instance(
