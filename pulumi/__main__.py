@@ -290,7 +290,7 @@ pulumi.export("bastion_instance_public_ip", bastion_instance.public_ip)
 private_instances_data = [ 
                             {
                               "private_ip": "10.0.0.4",
-                              "type":"client",
+                              "type":["client", "consul"],
                             },
                             {
                                 "private_ip": "10.0.0.5",
