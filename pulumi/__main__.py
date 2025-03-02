@@ -20,6 +20,11 @@ ec2_config = config.require_object("ec2")
 bastion_instance_type = ec2_config["bastion_instance_type"]
 
 # instance type for the cluster nodes
+
+# instance type for the bastion host
+bastion_instance_type = ec2_config["bastion_instance_type"]
+
+# instance type for the cluster nodes
 instance_type = ec2_config["instance_type"]
 
 # user data for vpc instances
@@ -150,6 +155,7 @@ ssh_security_group = aws.ec2.SecurityGroup(
     "nomad-ssh-sg",
     vpc_id=vpc.id,
     description="Group allows to communicate with the cluster nodes only through the bastion host",
+    description="Group allows to communicate with the cluster nodes only through the bastion host",
     
     # incoming traffic rules
     ingress=[
@@ -205,9 +211,12 @@ bastion_security_group = aws.ec2.SecurityGroup(
     tags={"Name": "nomad-bastion-sg"}
 )
 
+#bastion server name 
+bastion_name = "nomad-bastion"
+
 # create the bastion host
 bastion_instance = aws.ec2.Instance(
-    "nomad-bastion",
+    bastion_name,
     ami=machine_image,
     instance_type=instance_type,
     vpc_security_group_ids=[bastion_security_group.id],
@@ -222,8 +231,7 @@ bastion_instance = aws.ec2.Instance(
                     yum install -y python3-pip""",
 )
 
-pulumi.export("bastion_instance_private_ip", bastion_instance.public_ip)
-
+pulumi.export("bastion_instance_public_ip", bastion_instance.public_ip)
 # create the public instances
 # the subnet is 10.0.0.4/24
 private_instances_data = [ 
@@ -318,7 +326,10 @@ for i in range(public_instances_count):
     pulumi.export(f"public_instance_{i + 1}_private_ip", public_instance.private_ip)
 
 # join lists of private and public instances 
-instances_data = private_instances_data + public_instances_data
+instances_data = private_instances_data + public_instances_data + [ { 
+                                                                     "private_ip": bastion_instance.private_ip, 
+                                                                     "type": "bastion", 
+                                                                     "name": bastion_name } ]
     
 with open("../ansible/inventory.json", "w") as f:
     json.dump(instances_data, f, indent=2)
