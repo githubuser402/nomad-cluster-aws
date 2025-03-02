@@ -85,7 +85,7 @@ public_subnet = aws.ec2.Subnet(
 bastion_subnet = aws.ec2.Subnet(
     "nomad-cluster-bastion",
     vpc_id=vpc.id,
-    cidr_block="10.0.10.0/29", # 4 valid addresses 
+    cidr_block="10.0.10.0/28", # 12 valid addresses
     availability_zone=zones[2],
     map_public_ip_on_launch=True,
     tags={"Name": "nomad-cluster-bastion"},
