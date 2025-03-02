@@ -162,7 +162,7 @@ ssh_security_group = aws.ec2.SecurityGroup(
             "protocol": "tcp",
             "from_port": 22,
             "to_port": 22,
-            "cidr_blocks": ["10.0.10.0/29"], 
+            "cidr_blocks": ["10.0.10.0/28"], 
             "description": "allow ssh from bastion host"
         },
     ],
