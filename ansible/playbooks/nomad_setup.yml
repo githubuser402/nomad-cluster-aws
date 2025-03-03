@@ -6,8 +6,9 @@
   roles: 
     - nomad_server
 
-- name: Install and configure Nomad Clients
+- name: Install and configure Nomad Clients with Docker
   hosts: nomad_client
   become: yes
   roles: 
     - nomad_client
+    - docker

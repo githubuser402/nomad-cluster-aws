@@ -1,0 +1,31 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for roles/docker
+
+- name: Update yum repos
+  command: "yum update -y"
+
+- name: Install docker 
+  yum:
+    name: docker 
+    state: present
+
+- name: Start and Enable Docker Service
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Add `ec2-user` to the Docker group
+  user:
+    name: ec2-user
+    groups: docker
+    append: yes
+
+- name: Verify Docker Installation
+  command: docker --version
+  register: docker_version
+
+- name: Show Docker Version
+  debug:
+    msg: "Docker installed: {{ docker_version.stdout }}"

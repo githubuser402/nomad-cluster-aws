@@ -228,6 +228,44 @@ nomad_security_group = aws.ec2.SecurityGroup("nomad-security-group",
 )
 
 
+# nomad client security group
+# must be updated upon the new service creation in nomad
+nomad_client_security_group = aws.ec2.SecurityGroup(
+    "nomad-client-security-group",
+    vpc_id=vpc.id,
+    description="Security group for services running on nomad clients",
+
+    ingress=[
+        {
+            "protocol": "tcp",
+            "from_port": 80,
+            "to_port": 80,
+            "cidr_blocks": ["10.0.10.0/28", "10.0.1.0/24"],
+            "description": "Allows http traffic from the public subnet instances"
+        },
+        {
+            "protocol": "tcp",
+            "from_port": 443,
+            "to_port": 443,
+            "cidr_blocks": ["10.0.10.0/28", "10.0.1.0/24"],
+            "description": "Allows http traffic from the public subnet instances"
+        },
+    ],
+    
+    egress=[
+        {
+            "protocol": "-1",
+            "from_port": 0,
+            "to_port": 0,
+            "cidr_blocks": ["0.0.0.0/0"],  # Allow all outbound traffic
+            "description": "Allow all outbound traffic"
+        }
+    ],
+    tags={"Name": "nomad-client-security-group"}
+)
+
+
+
 # security group for the bastion host
 bastion_security_group = aws.ec2.SecurityGroup(
     "nomad-bastion-sg",
@@ -328,6 +366,10 @@ for i in range(private_instances_count):
     if "server" in private_instances_data[i]["type"]:
         security_groups.append(nomad_security_group.id)
 
+    if "client" in private_instances_data[i]["type"]:
+        security_groups.append(nomad_client_security_group.id)
+
+
     private_instance = aws.ec2.Instance(
         resource_name=server_name,
         ami=machine_image,
@@ -363,13 +405,21 @@ public_security_group = aws.ec2.SecurityGroup(
     "public-securiry-group",
     vpc_id=vpc.id,
     description="Security group with port 8888 open to public",
+
     ingress=[
         {
             "protocol": "tcp",
-            "from_port": 8888,
-            "to_port": 8888,
+            "from_port": 80,
+            "to_port": 80,
             "cidr_blocks": ["0.0.0.0/0"],  # Allows access from anywhere (public)
-            "description": "Allow public access on port 8888"
+            "description": "Allow public access on port 80"
+        },
+        {
+            "protocol": "tcp",
+            "from_port": 443,
+            "to_port": 443,
+            "cidr_blocks": ["0.0.0.0/0"],  # Allows access from anywhere (public)
+            "description": "Allow public access on port 80"
         },
     ],
 
@@ -384,6 +434,7 @@ public_security_group = aws.ec2.SecurityGroup(
     ],
     tags={"Name": "public-security-group"}
 )
+
 
 
 # count of public instances 
