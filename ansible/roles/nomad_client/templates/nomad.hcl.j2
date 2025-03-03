@@ -1,7 +1,7 @@
 data_dir = "/opt/nomad"
 bind_addr = "0.0.0.0"
 
-server {
+client {
   enabled = true
   servers = {{ groups["nomad_server"] | map('extract', hostvars, ['ansible_host']) |  list | to_json }}
 }
