@@ -1,0 +1,22 @@
+#
+# Configuration of the nomad server
+
+---
+
+- name: Create Nomad configuration directory
+  file: 
+    path: "/etc/nomad.d"
+    state: directory
+    mode: "0755"
+
+- name:  Copy Nomad configuration
+  template: 
+    src: "nomad.hcl.j2"
+    dest: "/etc/nomad.d/nomad.hcl"
+    mode: "0644"
+
+- name: Enable and Start Nomad service
+  systemd:
+    name: nomad
+    state: started
+    enabled: true

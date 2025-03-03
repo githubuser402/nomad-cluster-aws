@@ -298,11 +298,15 @@ private_instances_data = [
                             },
                             {
                                 "private_ip": "10.0.0.6",
-                                "type":["client", "server"],
+                                "type":["client"],
                             },
                             {
                                 "private_ip": "10.0.0.7",
                                 "type": [ "server", "consul" ],
+                            },
+                            {
+                                "private_ip": "10.0.0.8",
+                                "type": "server"
                             }
                         ]
 
@@ -353,6 +357,35 @@ public_instances_data = [
                             },
                         ]
 
+
+# public instance security group
+public_security_group = aws.ec2.SecurityGroup(
+    "public-securiry-group",
+    vpc_id=vpc.id,
+    description="Security group with port 8888 open to public",
+    ingress=[
+        {
+            "protocol": "tcp",
+            "from_port": 8888,
+            "to_port": 8888,
+            "cidr_blocks": ["0.0.0.0/0"],  # Allows access from anywhere (public)
+            "description": "Allow public access on port 8888"
+        },
+    ],
+
+    egress=[
+        {
+            "protocol": "-1",
+            "from_port": 0,
+            "to_port": 0,
+            "cidr_blocks": ["0.0.0.0/0"],  # Allow all outbound traffic
+            "description": "Allow all outbound traffic"
+        }
+    ],
+    tags={"Name": "public-security-group"}
+)
+
+
 # count of public instances 
 public_instances_count = len(public_instances_data)
 
@@ -364,7 +397,7 @@ for i in range(public_instances_count):
         resource_name=server_name,
         ami=machine_image,
         instance_type=instance_type,
-        vpc_security_group_ids=[ssh_security_group.id],
+        vpc_security_group_ids=[ssh_security_group.id, public_security_group.id],
         subnet_id=public_subnet.id,
         private_ip=public_instances_data[i]["private_ip"],
         key_name=ec2_key.key_name,

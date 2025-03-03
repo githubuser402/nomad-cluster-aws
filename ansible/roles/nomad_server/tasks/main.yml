@@ -3,4 +3,4 @@
 # tasks file for roles/nomad
 
 - import_tasks: install.yml
-- import_tasks: configure.yml
+- import_tasks: configure_nomad_server.yml

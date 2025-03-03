@@ -1,7 +1,13 @@
 ---
 
-- name: Install and Configure Nomad
+- name: Install and configure Nomad Servers
   hosts: nomad_server
   become: yes
   roles: 
-    - nomad
+    - nomad_server
+
+- name: Install and configure Nomad Clients
+  hosts: nomad_client
+  become: yes
+  roles: 
+    - nomad_client

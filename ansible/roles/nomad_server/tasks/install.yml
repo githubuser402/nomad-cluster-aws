@@ -1,0 +1,20 @@
+---
+# installation of the nomad
+
+- name: Installation of yum-utils
+  yum: 
+    name: 
+      - yum-utils
+    state: present
+
+- name: Add HashiCorp Nomad YUM repository
+  command: "yum-config-manager --add-repo {{ nomad_repo_url }}" 
+  args:
+    creates: "/etc/yum.repos.d/hashicorp.repo"
+
+- name: Install Nomad
+  yum: 
+    name: 
+      - "{{ nomad_package }}"
+    state: present
+
