@@ -2,8 +2,11 @@
 
 import pulumi
 import pulumi_aws as aws
+from dotenv import load_dotenv
 import os
 import json
+
+load_dotenv()
 
 config = pulumi.Config()
 
